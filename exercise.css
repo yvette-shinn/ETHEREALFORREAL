@@ -41,6 +41,7 @@ body { font-size: 100%; }
     align-items: center;
 }
 .books a{
+    display: inline;
     text-decoration: none;
     color: #3c342e;
     font-size: 1.8em;
@@ -48,13 +49,15 @@ body { font-size: 100%; }
     text-align: center;
 }
 .bookintro{
+    display: inline;
     font-size: 0.9em;
     flex-basis: 60%;
     text-align: center;
-    border-right: 1px rgb(0,0,0) solid;
-    border-left: 1px rgb(0,0,0) solid;
+    border-right: 1px black solid;
+    border-left: 1px black solid;
 }
 .posttime{
+    display: inline;
     font-size: 0.9em;
     flex-basis: 20%;
     text-align: center;
