@@ -51,8 +51,8 @@ body { font-size: 100%; }
     font-size: 0.9em;
     flex-basis: 60%;
     text-align: center;
-    border-right: 1px black solid;
-    border-left: 1px black solid;
+    border-right: 1px rgb(0,0,0) solid;
+    border-left: 1px rgb(0,0,0) solid;
 }
 .posttime{
     font-size: 0.9em;
