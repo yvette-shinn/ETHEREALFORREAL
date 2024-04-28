@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <!--<meta name="viewport" content="width=device-width, initial-scale=1.0">-->
+    <link rel="icon" href="logo.png" type="image">
+    <title>心情紀錄</title>
+    <link rel="stylesheet" href="test.css"/>
+</head>
+<body class="weblook">
+    <h1 class="h1"><span><img src="logo.png" alt="heart" class="icon"/></span>心情紀錄</h1>
+
+    <!-- 文字輸入欄 -->
+    <textarea type="text" id="textInput"></textarea>
+    <br/>
+    <br/>
+    <button onclick="addText()" class="button">上傳</button>
+    
+    <!-- 顯示新增的文字和日期時間 -->
+    <div id="output"></div>
+
+    <script>
+        // 函式用於新增文字和顯示日期時間
+        function addText() {
+            var textInput = document.getElementById("textInput");
+            var text = textInput.value;
+            var currentTime = new Date();
+            var formattedTime = currentTime.toLocaleString();
+            
+            var output = document.getElementById("output");
+            
+            // 創建新的段落元素來顯示文字和日期時間
+            var paragraph = document.createElement("p");
+            var hrElement = document.createElement("hr");
+            paragraph.textContent = text + " - " + formattedTime + "\n" + (hrElement).innerHTML;
+            
+            // 將新的段落元素添加到輸出區域
+            output.appendChild(paragraph);
+            
+            // 清除文字輸入欄
+            textInput.value = "";
+            
+            // 將文字儲存在本地儲存中
+            var storedText = localStorage.getItem("storedText") || "";
+            storedText += text + " - " + formattedTime + "\n";
+            localStorage.setItem("storedText", storedText);
+        }
+        
+        // 在網頁載入時，從本地儲存中恢復已存的文字
+        window.onload = function() {
+            var storedText = localStorage.getItem("storedText");
+            if (storedText) {
+                var output = document.getElementById("output");
+                var paragraphs = storedText.split("\n");
+                for (var i = 0; i < paragraphs.length; i++) {
+                    if (paragraphs[i].trim() !== "") {
+                        var paragraph = document.createElement("p");
+                        paragraph.textContent = paragraphs[i] ;
+                        output.appendChild(paragraph);
+                    }
+                }
+            }
+        }
+        //localStorage.removeItem("storedText");
+    </script>
+</body>
+</html>
