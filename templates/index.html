@@ -10,8 +10,8 @@
     {% for book in books %}
         <div class="book-summary">
             <h2><a href="{{ url_for('view_book_toc', book_id=book.id) }}">{{ book.title }}</a></h2>
-            <p>作者：{{ book.author or '未提供' }}</p>
-            <p>{{ book.summary or '沒有簡介。' }}</p>
+            <p>作者：{{ book.author or '神秘作家' }}</p>
+            <p>{{ book.summary or '不看會後悔！' }}</p>
             <div class="timestamp">建立於：{{ book.created_timestamp }}</div>
             <hr>
         </div>
