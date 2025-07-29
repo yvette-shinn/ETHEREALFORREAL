@@ -83,6 +83,17 @@ class CommentEditLog(db.Model):
     comment_id = db.Column(db.Integer, db.ForeignKey('comments.id'), nullable=False)
     old_content = db.Column(db.Text, nullable=False)
     edit_timestamp = db.Column(db.String(20), nullable=False)
+    
+# --- 【新增】建立資料庫表格的指令 ---
+@app.cli.command("init-db")
+def init_db_command():
+    """
+    清除現有資料並建立新的資料表。
+    這個指令專門用於在 Render 部署時初始化資料庫。
+    """
+    with app.app_context():
+        db.create_all()
+    print("Initialized the database and created all tables.")
 
 # --- 輔助函式 ---
 def get_all_books():
