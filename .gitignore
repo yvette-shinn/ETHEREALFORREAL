@@ -1,0 +1,10 @@
+# 忽略虛擬環境資料夾
+venv/
+__pycache__/
+
+# 忽略本地的 SQLite 資料庫檔案
+*.db
+*.db-journal
+
+# 忽略其他系統或編輯器產生的暫存檔
+.DS_Store
