@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block title %}{{ chapter.title }} - {{ book.title }}{% endblock %}
+{% block content %}
+    <style>
+        /* ... 此處可以貼上您之前寫好的所有相關 CSS 樣式 ... */
+        .chapter-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        .chapter-content { white-space: pre-wrap; word-wrap: break-word;}
+        .chapter-actions { display: flex; gap: 10px; }
+        .action-btn { background-color: #6c757d; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 14px; }
+        .action-btn.delete { background-color: #dc3545; border: none; font-family: inherit; cursor: pointer; }
+        /* 留言區樣式 */
+        .comment-section { margin-top: 40px; border-top: 2px solid #eee; padding-top: 20px; }
+        .comment-item { position: relative; font-size: 14px; margin-bottom: 10px; background-color: #f9f9f9; padding: 12px; border-radius: 6px; }
+        .comment-item:hover .comment-actions { opacity: 1; }
+        .comment-author { font-weight: bold; color: #8e6d91ff; }
+        .comment-timestamp { font-size: 11px; color: #888; }
+        .edited-notice { font-size: 10px; color: #999; margin-left: 8px; }
+        .comment-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; opacity: 0; transition: opacity: 0.2s; }
+        .comment-edit-link, .comment-delete-button { background: none; border: none; padding: 0; cursor: pointer; color: #606770; font-size: 14px; }
+        .comment-edit-link:hover, .comment-delete-button:hover { color: #000; }
+        /* 其他您需要的樣式 */
+        .comment-name , .comment-content {width: auto; height: 20px; display: flex;}
+        .comment-submit { background-color: #d2c3d9ff; border: none; border-radius: 20px; margin-top: 10px;}
+        .comment-submit:hover { opacity: 0.7;}
+        /* 【新增】章節導覽連結的樣式 */
+        .chapter-navigation {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;   
+            margin-top: 20px;
+        }
+        .nav-link {
+            text-decoration: none;
+            color: #007bff;
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        .nav-link:hover {
+            background-color: #007bff;
+            color: white;
+        }
+        .nav-link.toc {
+            color: #333;
+        }
+        .nav-link.toc:hover {
+            background-color: #f0f0f0;
+            color: #000;
+        }
+    </style>
+    
+    <div class="chapter-header">
+        <div>
+            <h1>{{ chapter.title }}</h1>
+            <p>本書：<a href="{{ url_for('view_book_toc', book_id=book.id) }}">{{ book.title }}</a> (第 {{ chapter.chapter_number }} 章)</p>
+        </div>
+        <div class="chapter-actions">
+            <a href="{{ url_for('edit_chapter', chapter_id=chapter.id) }}" class="action-btn">編輯本章</a>
+            <form action="{{ url_for('delete_chapter', chapter_id=chapter.id) }}" method="POST" onsubmit="return confirm('確定要刪除本章節及其所有留言嗎？');">
+                <button type="submit" class="action-btn delete">刪除本章</button>
+            </form>
+        </div>
+    </div>
+    <hr>
+    <div class="chapter-content">{{ chapter.content }}</div>
+
+    <div class="comment-section" id="comments-section">
+        <h3>留言</h3>
+        {% for comment in comments %}
+            <div class="comment-item">
+                {% if editing_comment_id == comment.id %}
+                    <form action="{{ url_for('update_comment', comment_id=comment.id) }}" method="POST">
+                        <input type="hidden" name="chapter_id" value="{{ chapter.id }}">
+                        <textarea name="content" required>{{ comment.content }}</textarea>
+                        <button type="submit">儲存</button>
+                        <a href="{{ url_for('view_chapter', chapter_id=chapter.id) }}">取消</a>
+                    </form>
+                {% else %}
+                    <p><span class="comment-author">{{ comment.author }}</span>: {{ comment.content }}</p>
+                    <small class="comment-timestamp">
+                        {{ comment.timestamp }}
+                        {% if comment.last_edited_timestamp %}
+                            <span class="edited-notice">(已編輯)</span>
+                        {% endif %}
+                    </small>
+                    <div class="comment-actions">
+                        <a href="{{ url_for('view_chapter', chapter_id=chapter.id, edit_comment_id=comment.id) }}" class="comment-edit-link" title="編輯留言"><i class="fas fa-pen"></i></a>
+                        <form action="{{ url_for('delete_comment', comment_id=comment.id) }}" method="POST" onsubmit="return confirm('確定要刪除這則留言嗎？');">
+                            <input type="hidden" name="chapter_id" value="{{ chapter.id }}">
+                            <button type="submit" class="comment-delete-button" title="刪除留言"><i class="fas fa-trash-alt"></i></button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <form action="{{ url_for('add_comment', chapter_id=chapter.id) }}" method="POST">
+            <h4>發表新留言</h4>
+            <input class="comment-name" type="text" name="author" placeholder="您的暱稱" required>
+            <textarea class="comment-content" name="content" placeholder="寫下您的留言..." required></textarea>
+            <button class="comment-submit" type="submit">送出</button>
+        </form>
+    </div>
+    <hr style="margin-top: 40px;">
+    <div class="chapter-navigation">
+        <div>
+            {% if prev_chapter_id %}
+                <a href="{{ url_for('view_chapter', chapter_id=prev_chapter_id) }}" class="nav-link prev">
+                    &larr; 上一章
+                </a>
+            {% endif %}
+        </div>
+        <div>
+            <a href="{{ url_for('view_book_toc', book_id=book.id) }}" class="nav-link toc">
+                返回目錄
+            </a>
+        </div>
+        <div>
+            {% if next_chapter_id %}
+                <a href="{{ url_for('view_chapter', chapter_id=next_chapter_id) }}" class="nav-link next">
+                    下一章 &rarr;
+                </a>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}

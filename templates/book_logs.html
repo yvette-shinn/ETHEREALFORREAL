@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}《{{ book.title }}》的編輯記錄{% endblock %}
+{% block content %}
+    <h1>編輯記錄</h1>
+    <h2>書名：《{{ book.title }}》</h2>
+    <hr>
+    {% for log in logs %}
+        <div class="log-item">
+            <p><strong>編輯時間：</strong>{{ log.edit_timestamp }}</p>
+            <div>
+                <strong>編輯前的標題：</strong>
+                <div class="log-content">{{ log.old_title }}</div>
+            </div>
+            <div style="margin-top: 15px;">
+                <strong>編輯前的作者：</strong>
+                <div class="log-content">{{ log.old_author or '(無)' }}</div>
+            </div>
+            <div style="margin-top: 15px;">
+                <strong>編輯前的簡介：</strong>
+                <div class="log-content">{{ log.old_summary or '(無)' }}</div>
+            </div>
+        </div>
+    {% else %}
+        <p>這本書沒有任何編輯記錄。</p>
+    {% endfor %}
+    <a href="{{ url_for('view_book_toc', book_id=book.id) }}">返回目錄</a>
+{% endblock %}

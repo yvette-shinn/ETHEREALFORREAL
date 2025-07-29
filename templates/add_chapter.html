@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{# 這個區塊會填入 base.html 的 <title> 標籤中 #}
+{# 我們使用從後端傳來的 book 物件，讓標題更明確 #}
+{% block title %}為《{{ book.title }}》新增章節{% endblock %}
+
+{# 這個區塊可以讓您為這個頁面加入專屬的 CSS #}
+{% block content %}
+    <style>
+        .add-chapter-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .add-chapter-form label {
+            font-weight: bold;
+            margin-bottom: -10px;
+        }
+        .add-chapter-form input[type="text"],
+        .add-chapter-form input[type="number"],
+        .add-chapter-form textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .add-chapter-form textarea {
+            min-height: 400px; /* 章節內容通常很長 */
+            resize: vertical;
+        }
+        .add-chapter-form .form-actions {
+            text-align: right;
+        }
+        .add-chapter-form input[type="submit"] {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .add-chapter-form input[type="submit"]:hover {
+            background-color: #218838;
+        }
+    </style>
+
+    {# 標題會動態顯示是為哪本書新增章節 #}
+    <h1>為《{{ book.title }}》新增章節</h1>
+
+    <form action="{{ url_for('add_chapter', book_id=book.id) }}" method="POST" class="add-chapter-form">
+        
+        <label for="chapter_number">章節編號</label>
+        <input type="number" id="chapter_number" name="chapter_number" placeholder="例如: 1" required>
+
+        <label for="title">章節標題</label>
+        <input type="text" id="title" name="title" placeholder="本章的標題" required>
+        
+        <label for="content">章節內容</label>
+        <textarea id="content" name="content" placeholder="在這裡寫下您的故事..." required></textarea>
+
+        <div class="form-actions">
+            <input type="submit" value="發表章節">
+        </div>
+    </form>
+{% endblock %}

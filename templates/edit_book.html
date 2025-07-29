@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block title %}編輯《{{ book.title }}》{% endblock %}
+
+{% block content %}
+    <style>
+        .edit-book-form { display: flex; flex-direction: column; gap: 15px; }
+        .edit-book-form label { font-weight: bold; margin-bottom: -10px; }
+        .edit-book-form input[type="text"], .edit-book-form textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 1em; box-sizing: border-box; }
+        .edit-book-form textarea { min-height: 150px; resize: vertical; }
+        .edit-book-form .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+        .edit-book-form .action-btn { background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-size: 1em; cursor: pointer; text-decoration: none; }
+        .edit-book-form .cancel-btn { background-color: #6c757d; }
+    </style>
+
+    <h1>編輯書本資訊</h1>
+    <h2>書名：《{{ book.title }}》</h2>
+
+    <form action="{{ url_for('edit_book', book_id=book.id) }}" method="POST" class="edit-book-form">
+        
+        <div>
+            <label for="title">書名</label>
+            <input type="text" id="title" name="title" value="{{ book.title }}" required>
+        </div>
+
+        <div>
+            <label for="author">作者</label>
+            <input type="text" id="author" name="author" value="{{ book.author }}">
+        </div>
+
+        <div>
+            <label for="summary">書本簡介</label>
+            <textarea id="summary" name="summary">{{ book.summary }}</textarea>
+        </div>
+
+        <div class="form-actions">
+            <a href="{{ url_for('view_book_toc', book_id=book.id) }}" class="action-btn cancel-btn">取消</a>
+            <input type="submit" value="儲存變更" class="action-btn">
+        </div>
+    </form>
+{% endblock %}

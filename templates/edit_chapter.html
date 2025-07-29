@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}編輯章節 - {{ book.title }}{% endblock %}
+{% block content %}
+    <style>
+        /* ... 此處可以貼上您之前寫好的所有相關 CSS 樣式 ... */
+        .chapter-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        .chapter-actions { display: flex; gap: 10px; }
+        .action-btn { background-color: #6c757d; color: white; padding: 5px 10px; text-decoration: none; border-radius: 4px; font-size: 14px; }
+        .action-btn.delete { background-color: #dc3545; border: none; font-family: inherit; cursor: pointer; }
+        /* 留言區樣式 */
+        .comment-section { margin-top: 40px; border-top: 2px solid #eee; padding-top: 20px; }
+        .comment-item { position: relative; font-size: 14px; margin-bottom: 10px; background-color: #f9f9f9; padding: 12px; border-radius: 6px; }
+        .comment-item:hover .comment-actions { opacity: 1; }
+        .comment-author { font-weight: bold; color: #0056b3; }
+        .comment-timestamp { font-size: 11px; color: #888; }
+        .edited-notice { font-size: 10px; color: #999; margin-left: 8px; }
+        .comment-actions { position: absolute; top: 8px; right: 8px; display: flex; gap: 8px; opacity: 0; transition: opacity: 0.2s; }
+        .comment-edit-link, .comment-delete-button { background: none; border: none; padding: 0; cursor: pointer; color: #606770; font-size: 14px; }
+        .comment-edit-link:hover, .comment-delete-button:hover { color: #000; }
+        /* 其他您需要的樣式 */
+    </style>
+    
+    <h1>編輯章節</h1>
+    <h2>書名：《{{ book.title }}》</h2>
+    
+    <form action="{{ url_for('edit_chapter', chapter_id=chapter.id) }}" method="POST">
+        <div>
+            <label for="title">章節標題</label>
+            <input type="text" id="title" name="title" value="{{ chapter.title }}" required>
+        </div>
+        <div>
+            <label for="content">章節內容</label>
+            <textarea id="content" name="content" required>{{ chapter.content }}</textarea>
+        </div>
+        <div>
+            <a href="{{ url_for('view_chapter', chapter_id=chapter.id) }}">取消</a>
+            <button type="submit">儲存變更</button>
+        </div>
+    </form>
+{% endblock %}

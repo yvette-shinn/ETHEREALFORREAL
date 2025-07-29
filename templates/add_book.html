@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{# 這個區塊會填入 base.html 的 <title> 標籤中 #}
+{% block title %}建立新書本{% endblock %}
+
+{# 這個區塊可以讓您為這個頁面加入專屬的 CSS 或 <meta> 標籤 #}
+{% block content %}
+    <style>
+        .add-book-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .add-book-form label {
+            font-weight: bold;
+            margin-bottom: -10px;
+        }
+        .add-book-form input[type="text"],
+        .add-book-form textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .add-book-form textarea {
+            min-height: 150px; /* 簡介不需要像內文那麼高 */
+            resize: vertical;
+        }
+        .add-book-form .form-actions {
+            text-align: right;
+        }
+        .add-book-form input[type="submit"] {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .add-book-form input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+    </style>
+
+    <h1>建立新書本</h1>
+    <p>在這裡為您的新小說建立一個檔案，之後您就可以為它新增章節了。</p>
+
+    <form action="{{ url_for('add_book') }}" method="POST" class="add-book-form">
+        
+        <label for="title">書名</label>
+        <input type="text" id="title" name="title" placeholder="您的書本標題" required>
+
+        <label for="author">作者 (選填)</label>
+        <input type="text" id="author" name="author" placeholder="作者筆名">
+
+        <label for="summary">書本簡介 (選填)</label>
+        <textarea id="summary" name="summary" placeholder="這本書的精采摘要..."></textarea>
+
+        <div class="form-actions">
+            <input type="submit" value="建立書本">
+        </div>
+    </form>
+{% endblock %}
