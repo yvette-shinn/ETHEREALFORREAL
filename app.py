@@ -1,4 +1,5 @@
 import os
+import sqlite3 # 雖然我們用 SQLAlchemy，但保留它可以捕捉特定的錯誤
 from flask import Flask, render_template, request, redirect, url_for, g
 from datetime import datetime
 from flask_sqlalchemy import SQLAlchemy
@@ -8,6 +9,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 
 # --- 資料庫設定 ---
+# 增加一個 Heroku/Render 的 postgresql 協議替換，增加相容性
+db_uri = os.environ.get('DATABASE_URL', 'sqlite:///novel_site.db')
+if db_uri.startswith("postgres://"):
+    db_uri = db_uri.replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///novel_site.db').replace("postgres://", "postgresql://", 1)
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
@@ -101,18 +106,31 @@ def view_book_toc(book_id):
 @auth.login_required
 def view_chapter(chapter_id):
     editing_comment_id = request.args.get('edit_comment_id', type=int)
+    
+    # 步驟 1: 使用 SQLAlchemy 取得章節物件，get_or_404 會自動處理找不到的情況
     chapter = Chapter.query.get_or_404(chapter_id)
-    # 由於 backref，可以直接用 chapter.book 取得書本物件
-    if not chapter: return "章節不存在", 404
     
-    book = db.execute('SELECT id, title FROM books WHERE id = ?', (chapter['book_id'],)).fetchone()
-    comments = db.execute('SELECT * FROM comments WHERE chapter_id = ? ORDER BY timestamp ASC', (chapter_id,)).fetchall()
-    
-    prev_chapter = db.execute('SELECT id FROM chapters WHERE book_id = ? AND chapter_number < ? ORDER BY chapter_number DESC LIMIT 1', (chapter['book_id'], chapter['chapter_number'])).fetchone()
-    next_chapter = db.execute('SELECT id FROM chapters WHERE book_id = ? AND chapter_number > ? ORDER BY chapter_number ASC LIMIT 1', (chapter['book_id'], chapter['chapter_number'])).fetchone()
+    # 步驟 2: 使用 SQLAlchemy 查詢來尋找上一章
+    prev_chapter = Chapter.query.filter(
+        Chapter.book_id == chapter.book_id,
+        Chapter.chapter_number < chapter.chapter_number
+    ).order_by(Chapter.chapter_number.desc()).first()
 
-    return render_template('chapter.html', chapter=chapter, book=chapter.book, comments=chapter.comments, all_books=get_all_books(), editing_comment_id=editing_comment_id, prev_chapter_id=prev_chapter['id'] if prev_chapter else None, next_chapter_id=next_chapter['id'] if next_chapter else None)
-    
+    # 步驟 3: 使用 SQLAlchemy 查詢來尋找下一章
+    next_chapter = Chapter.query.filter(
+        Chapter.book_id == chapter.book_id,
+        Chapter.chapter_number > chapter.chapter_number
+    ).order_by(Chapter.chapter_number.asc()).first()
+
+    # 步驟 4: 渲染樣板。可以直接透過 'chapter' 物件取得關聯的書本和留言
+    return render_template('chapter.html', 
+                           chapter=chapter, 
+                           book=chapter.book, # 直接使用 backref
+                           comments=chapter.comments, # 直接使用 relationship
+                           all_books=get_all_books(), 
+                           editing_comment_id=editing_comment_id,
+                           prev_chapter_id=prev_chapter.id if prev_chapter else None,
+                           next_chapter_id=next_chapter.id if next_chapter else None)
 # --- 後台書本 CRUD ---
 @app.route('/add_book', methods=['GET', 'POST'])
 @auth.login_required
@@ -121,16 +139,31 @@ def add_book():
         title = request.form['title']
         author = request.form['author']
         summary = request.form['summary']
+        
         if title:
-            db = get_db()
+            # 檢查書名是否已存在
+            existing_book = Book.query.filter_by(title=title).first()
+            if existing_book:
+                return "錯誤：書名已存在！請使用不同的書名。"
+
+            # 步驟 1: 根據 Book 模型(class) 建立一個新的 Python 物件
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            try:
-                db.execute('INSERT INTO books (title, author, summary, created_timestamp) VALUES (?, ?, ?, ?)',
-                           (title, author, summary, timestamp))
-                db.commit()
-            except sqlite3.IntegrityError:
-                return "錯誤：書名已存在！"
+            new_book = Book(
+                title=title, 
+                author=author, 
+                summary=summary, 
+                created_timestamp=timestamp
+            )
+            
+            # 步驟 2: 將這個新物件加入到資料庫的 session 中
+            db.session.add(new_book)
+            
+            # 步驟 3: 提交 session，將變更寫入資料庫
+            db.session.commit()
+            
             return redirect(url_for('index'))
+            
+    # 如果是 GET 請求，就正常顯示頁面
     return render_template('add_book.html', all_books=get_all_books())
 
 @app.route('/book/edit/<int:book_id>', methods=['GET', 'POST'])
@@ -181,23 +214,35 @@ def delete_book(book_id):
 @app.route('/book/<int:book_id>/add_chapter', methods=['GET', 'POST'])
 @auth.login_required
 def add_chapter(book_id):
-    db = get_db()
-    book = db.execute('SELECT id, title FROM books WHERE id = ?', (book_id,)).fetchone()
-    if not book: return "書本不存在", 404
+    # 步驟 1: 使用 SQLAlchemy 的方法取得書本物件，簡潔又安全
+    book = Book.query.get_or_404(book_id)
 
     if request.method == 'POST':
         chapter_number = request.form['chapter_number']
         title = request.form['title']
         content = request.form['content']
+        
         if chapter_number and title and content:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            db.execute('INSERT INTO chapters (book_id, chapter_number, title, content, timestamp) VALUES (?, ?, ?, ?, ?)',
-                       (book_id, int(chapter_number), title, content, timestamp))
-            db.commit()
+            
+            # 步驟 2: 根據 Chapter 模型(class) 建立一個新的章節物件
+            new_chapter = Chapter(
+                book_id=book_id,
+                chapter_number=int(chapter_number),
+                title=title,
+                content=content,
+                timestamp=timestamp
+            )
+            
+            # 步驟 3: 將新物件加入 session 並提交到資料庫
+            db.session.add(new_chapter)
+            db.session.commit()
+            
             return redirect(url_for('view_book_toc', book_id=book_id))
-    
+            
+    # 如果是 GET 請求，就正常顯示頁面
     return render_template('add_chapter.html', book=book, all_books=get_all_books())
-    
+
 # --- 【新】章節 CRUD ---
 @app.route('/chapter/edit/<int:chapter_id>', methods=['GET', 'POST'])
 @auth.login_required
