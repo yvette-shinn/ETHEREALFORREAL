@@ -2,6 +2,7 @@ import os
 import sqlite3 # 雖然我們用 SQLAlchemy，但保留它可以捕捉特定的錯誤
 from flask import Flask, render_template, request, redirect, url_for, g
 from datetime import datetime
+from zoneinfo import ZoneInfo # 【新增】引入時區資訊函式庫
 from flask_sqlalchemy import SQLAlchemy
 from flask_httpauth import HTTPBasicAuth
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -84,6 +85,18 @@ class CommentEditLog(db.Model):
     old_content = db.Column(db.Text, nullable=False)
     edit_timestamp = db.Column(db.String(20), nullable=False)
     
+# --- 【請將這整段全新的函式複製到這裡】 ---
+def get_current_taipei_time():
+    """
+    一個輔助函式，專門用來取得當前台北(GMT+8)時間，並格式化成我們需要的字串。
+    """
+    # 定義我們要使用的時區
+    taipei_tz = ZoneInfo("Asia/Taipei")
+    # 取得帶有該時區資訊的當下時間
+    taipei_now = datetime.now(taipei_tz)
+    # 將時間物件格式化成字串並回傳
+    return taipei_now.strftime("%Y-%m-%d %H:%M:%S")
+    
 # --- 【新增】建立資料庫表格的指令 ---
 @app.cli.command("init-db")
 def init_db_command():
@@ -94,6 +107,60 @@ def init_db_command():
     with app.app_context():
         db.create_all()
     print("Initialized the database and created all tables.")
+    
+# --- 【請將這整段全新的程式碼複製到您的 app.py 中】 ---
+@app.cli.command("correct-timestamps")
+def correct_timestamps_command():
+    """
+    一個一次性的指令，用來將資料庫中所有舊的、以 UTC 儲存的時間字串，
+    校正為 GMT+8 (Asia/Taipei) 時間。
+    """
+    with app.app_context():
+        print("--- 開始校正資料庫中的時間戳 ---")
+        
+        utc_tz = ZoneInfo("UTC")
+        taipei_tz = ZoneInfo("Asia/Taipei")
+
+        def convert_utc_string_to_taipei(ts_string):
+            """輔助函式，轉換單一時間字串"""
+            if not ts_string:
+                return None
+            try:
+                # 1. 將字串解析為一個「天真」的 datetime 物件
+                naive_dt = datetime.strptime(ts_string, "%Y-%m-%d %H:%M:%S")
+                # 2. 告訴 Python 這個「天真」的物件其實代表的是 UTC 時間
+                utc_dt = naive_dt.replace(tzinfo=utc_tz)
+                # 3. 將它轉換為台北時區
+                taipei_dt = utc_dt.astimezone(taipei_tz)
+                # 4. 格式化回字串並回傳
+                return taipei_dt.strftime("%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                # 如果格式不符或已轉換過，直接回傳原值
+                return ts_string
+
+        # 開始遍歷所有需要修改的表格和欄位
+        tables_and_fields = {
+            Book: ['created_timestamp'],
+            Chapter: ['timestamp'],
+            Comment: ['timestamp', 'last_edited_timestamp'],
+            BookEditLog: ['edit_timestamp'],
+            ChapterEditLog: ['edit_timestamp'],
+            CommentEditLog: ['edit_timestamp']
+        }
+
+        for model, fields in tables_and_fields.items():
+            records = model.query.all()
+            print(f"正在處理 {model.__tablename__} 表格...")
+            for record in records:
+                for field in fields:
+                    old_time_str = getattr(record, field)
+                    new_time_str = convert_utc_string_to_taipei(old_time_str)
+                    setattr(record, field, new_time_str)
+            print(f" -> 完成 {len(records)} 筆紀錄。")
+
+        # 提交所有變更到資料庫
+        db.session.commit()
+        print("\n✅ 所有時間戳已成功校正為 GMT+8！")
 
 # --- 輔助函式 ---
 def get_all_books():
@@ -158,7 +225,7 @@ def add_book():
                 return "錯誤：書名已存在！請使用不同的書名。"
 
             # 步驟 1: 根據 Book 模型(class) 建立一個新的 Python 物件
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = get_current_taipei_time()
             new_book = Book(
                 title=title, 
                 author=author, 
@@ -188,7 +255,7 @@ def edit_book(book_id):
             old_title=book.title,
             old_author=book.author,
             old_summary=book.summary,
-            edit_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            edit_timestamp=get_current_taipei_time()
         )
         db.session.add(edit_log)
         
@@ -234,7 +301,7 @@ def add_chapter(book_id):
         content = request.form['content']
         
         if chapter_number and title and content:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = get_current_taipei_time()
             
             # 步驟 2: 根據 Chapter 模型(class) 建立一個新的章節物件
             new_chapter = Chapter(
@@ -261,7 +328,7 @@ def edit_chapter(chapter_id):
     chapter = Chapter.query.get_or_404(chapter_id)
     if request.method == 'POST':
         # 1. 記錄日誌
-        edit_log = ChapterEditLog(chapter_id=chapter_id, old_title=chapter.title, old_content=chapter.content, edit_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        edit_log = ChapterEditLog(chapter_id=chapter_id, old_title=chapter.title, old_content=chapter.content, edit_timestamp=get_current_taipei_time())
         db.session.add(edit_log)
         # 2. 更新章節
         chapter.chapter_number = int(request.form['chapter_number'])
@@ -287,7 +354,7 @@ def add_comment(chapter_id):
     author = request.form['author']
     content = request.form['content']
     if author and content:
-        new_comment = Comment(chapter_id=chapter_id, author=author, content=content, timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        new_comment = Comment(chapter_id=chapter_id, author=author, content=content, timestamp = get_current_taipei_time())
         db.session.add(new_comment)
         db.session.commit()
     return redirect(url_for('view_chapter', chapter_id=chapter_id) + '#comments-section')
@@ -299,11 +366,11 @@ def update_comment(comment_id):
     new_content = request.form['content']
     if new_content:
         # 1. 記錄日誌
-        edit_log = CommentEditLog(comment_id=comment_id, old_content=comment.content, edit_timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        edit_log = CommentEditLog(comment_id=comment_id, old_content=comment.content, edit_timestamp = get_current_taipei_time())
         db.session.add(edit_log)
         # 2. 更新留言
         comment.content = new_content
-        comment.last_edited_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        comment.last_edited_timestamp = get_current_taipei_time()
         db.session.commit()
     return redirect(url_for('view_chapter', chapter_id=comment.chapter_id) + '#comments-section')
 
