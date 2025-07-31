@@ -329,6 +329,7 @@ def delete_comment(comment_id):
     db.session.commit()
     return redirect(url_for('view_chapter', chapter_id=chapter_id) + '#comments-section')
 
+"""
 # ... 您所有的 CRUD 路由結束後 ...
 
 # --- 【請將這整段全新的程式碼複製到您的 app.py 中】 ---
@@ -336,9 +337,9 @@ def delete_comment(comment_id):
 @app.route('/internal-admin/correct-all-timestamps-now')
 @auth.login_required # 確保只有登入的使用者才能執行
 def run_timestamp_correction():
-    """
+  
     透過訪問此網址來觸發一次性的時間校正腳本。
-    """
+
     print("--- 開始透過網頁觸發校正資料庫中的時間戳 ---")
     
     # 從 Python 3.9 開始內建，Render 的環境支援
@@ -385,6 +386,7 @@ def run_timestamp_correction():
     # 在瀏覽器上顯示簡單的成功訊息
     return "<pre>" + "\n".join(log_messages) + "</pre>"
 # --- 新增程式碼結束 ---
+"""
 
 # --- 執行程式 ---
 if __name__ == '__main__':
