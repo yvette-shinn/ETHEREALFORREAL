@@ -107,60 +107,6 @@ def init_db_command():
     with app.app_context():
         db.create_all()
     print("Initialized the database and created all tables.")
-    
-# --- 【請將這整段全新的程式碼複製到您的 app.py 中】 ---
-@app.cli.command("correct-timestamps")
-def correct_timestamps_command():
-    """
-    一個一次性的指令，用來將資料庫中所有舊的、以 UTC 儲存的時間字串，
-    校正為 GMT+8 (Asia/Taipei) 時間。
-    """
-    with app.app_context():
-        print("--- 開始校正資料庫中的時間戳 ---")
-        
-        utc_tz = ZoneInfo("UTC")
-        taipei_tz = ZoneInfo("Asia/Taipei")
-
-        def convert_utc_string_to_taipei(ts_string):
-            """輔助函式，轉換單一時間字串"""
-            if not ts_string:
-                return None
-            try:
-                # 1. 將字串解析為一個「天真」的 datetime 物件
-                naive_dt = datetime.strptime(ts_string, "%Y-%m-%d %H:%M:%S")
-                # 2. 告訴 Python 這個「天真」的物件其實代表的是 UTC 時間
-                utc_dt = naive_dt.replace(tzinfo=utc_tz)
-                # 3. 將它轉換為台北時區
-                taipei_dt = utc_dt.astimezone(taipei_tz)
-                # 4. 格式化回字串並回傳
-                return taipei_dt.strftime("%Y-%m-%d %H:%M:%S")
-            except ValueError:
-                # 如果格式不符或已轉換過，直接回傳原值
-                return ts_string
-
-        # 開始遍歷所有需要修改的表格和欄位
-        tables_and_fields = {
-            Book: ['created_timestamp'],
-            Chapter: ['timestamp'],
-            Comment: ['timestamp', 'last_edited_timestamp'],
-            BookEditLog: ['edit_timestamp'],
-            ChapterEditLog: ['edit_timestamp'],
-            CommentEditLog: ['edit_timestamp']
-        }
-
-        for model, fields in tables_and_fields.items():
-            records = model.query.all()
-            print(f"正在處理 {model.__tablename__} 表格...")
-            for record in records:
-                for field in fields:
-                    old_time_str = getattr(record, field)
-                    new_time_str = convert_utc_string_to_taipei(old_time_str)
-                    setattr(record, field, new_time_str)
-            print(f" -> 完成 {len(records)} 筆紀錄。")
-
-        # 提交所有變更到資料庫
-        db.session.commit()
-        print("\n✅ 所有時間戳已成功校正為 GMT+8！")
 
 # --- 輔助函式 ---
 def get_all_books():
@@ -382,6 +328,63 @@ def delete_comment(comment_id):
     db.session.delete(comment) # SQLAlchemy 的 cascade 設定會自動刪除關聯的留言日誌
     db.session.commit()
     return redirect(url_for('view_chapter', chapter_id=chapter_id) + '#comments-section')
+
+# ... 您所有的 CRUD 路由結束後 ...
+
+# --- 【請將這整段全新的程式碼複製到您的 app.py 中】 ---
+# 建立一個秘密的一次性管理工具路由
+@app.route('/internal-admin/correct-all-timestamps-now')
+@auth.login_required # 確保只有登入的使用者才能執行
+def run_timestamp_correction():
+    """
+    透過訪問此網址來觸發一次性的時間校正腳本。
+    """
+    print("--- 開始透過網頁觸發校正資料庫中的時間戳 ---")
+    
+    # 從 Python 3.9 開始內建，Render 的環境支援
+    from zoneinfo import ZoneInfo
+    
+    utc_tz = ZoneInfo("UTC")
+    taipei_tz = ZoneInfo("Asia/Taipei")
+
+    def convert_utc_string_to_taipei(ts_string):
+        if not ts_string: return None
+        try:
+            naive_dt = datetime.strptime(ts_string, "%Y-%m-%d %H:%M:%S")
+            utc_dt = naive_dt.replace(tzinfo=utc_tz)
+            taipei_dt = utc_dt.astimezone(taipei_tz)
+            return taipei_dt.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            return ts_string
+
+    tables_and_fields = {
+        Book: ['created_timestamp'],
+        Chapter: ['timestamp'],
+        Comment: ['timestamp', 'last_edited_timestamp'],
+        BookEditLog: ['edit_timestamp'],
+        ChapterEditLog: ['edit_timestamp'],
+        CommentEditLog: ['edit_timestamp']
+    }
+
+    log_messages = []
+    for model, fields in tables_and_fields.items():
+        records = model.query.all()
+        log_messages.append(f"正在處理 {model.__tablename__} 表格...")
+        count = 0
+        for record in records:
+            for field in fields:
+                old_time_str = getattr(record, field)
+                new_time_str = convert_utc_string_to_taipei(old_time_str)
+                setattr(record, field, new_time_str)
+            count += 1
+        log_messages.append(f" -> 完成 {count} 筆紀錄。")
+
+    db.session.commit()
+    log_messages.append("\n✅ 所有時間戳已成功校正為 GMT+8！")
+    
+    # 在瀏覽器上顯示簡單的成功訊息
+    return "<pre>" + "\n".join(log_messages) + "</pre>"
+# --- 新增程式碼結束 ---
 
 # --- 執行程式 ---
 if __name__ == '__main__':
